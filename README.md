@@ -1,0 +1,2 @@
+# nping
+nb ping
