@@ -50,7 +50,10 @@ pub fn draw_interface<B: Backend>(
             let horizontal_constraints: Vec<Constraint> = if row_data.len() == 5 {
                 row_data.iter().map(|_| Constraint::Percentage(20)).collect()
             } else {
-                let size = row_data.len() * 20;
+                let mut size = 100;
+                if rows > 5 {
+                    size = row_data.len() * 20;
+                }
                 row_data.iter().map(|_| Constraint::Percentage(size as u16 / row_data.len() as u16)).collect()
             };
 
@@ -75,7 +78,7 @@ pub fn draw_interface<B: Backend>(
                             [
                                 Constraint::Length(1),
                                 Constraint::Percentage(5),
-                                Constraint::Length(3),
+                                Constraint::Percentage(5),
                                 Constraint::Percentage(60),
                                 Constraint::Length(1),
                                 Constraint::Length(5),
