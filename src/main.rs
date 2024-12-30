@@ -22,8 +22,8 @@ struct Args {
     #[arg(help = "target IP address or hostname to ping", required = true)]
     target: Vec<String>,
 
-    /// Number of pings to send
-    #[arg(short, long, default_value_t = 100000, help = "Number of pings to send")]
+    /// Number of pings to send, when count is 0, the maximum number of pings per address is calculated
+    #[arg(short, long, default_value_t = 0, help = "Number of pings to send")]
     count: usize,
 
     /// Interval in seconds between pings
@@ -40,9 +40,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // parse command line arguments
     let args = Args::parse();
 
-    // init terminal
-    ui::init_terminal()?;
-
     // set Ctrl+C handler
     let running = Arc::new(Mutex::new(true));
     {
@@ -56,8 +53,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     let targets: Vec<String> = args.target.into_iter().collect::<HashSet<_>>().into_iter().collect();
-    // run  app
-    let res = run_app(targets, args.count, args.interval, args.size, running.clone()).await;
+
+    let mut count = args.count;
+    if args.count == 0 {
+        count = network::calculate_max_pings_per_address(targets.len());
+    }
+
+    // check if the number of pings exceeds the maximum number of pings
+    if args.count > 0 && targets.len() * args.count > network::MAX_PINGS {
+        let max_count = network::calculate_max_pings_per_address(targets.len());
+        eprintln!("when you ping {} address, the maximum number of pings is {}", targets.len(), max_count);
+        std::process::exit(1);
+    }
+
+
+    let res = run_app(targets, count, args.interval, args.size, running.clone()).await;
 
     // if error print error message and exit
     if let Err(err) = res {
@@ -74,6 +84,9 @@ async fn run_app(
     size: i32,
     running: Arc<Mutex<bool>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+
+    // init terminal
+    ui::init_terminal()?;
 
     // Create terminal instance
     let terminal = ui::init_terminal().unwrap();
