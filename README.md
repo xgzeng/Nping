@@ -34,17 +34,23 @@ nping --help
 - Supports visual latency display
 - Real-time display of maximum, minimum, average latency, packet loss rate, and other metrics
 - Support IpV4 and IpV6
+- Supports concurrent pinging of n ip's under one address.
 
-## TODO:
-- Support dynamic layout display
-- Implement a better-looking UI
+## Roadmap:
+
+- Show country and city of IP
+- Add host sub-command, support to show the details of ip address corresponding to the domain name.
+- Optimize UI interface, add more dynamic effects.
+- When there are multiple addresses, the display will be sorted according to the average delay at the end.
 
 ## Usage
 
 ```bash
 nping www.baidu.com www.google.com www.apple.com www.sina.com -c 20 -i 2
 
-🏎 Nping with concurrent,chart,multiple addresses,real-time data update
+nping --help
+
+🏎 Nping mean NB Ping, A Ping Tool in Rust with Real-Time Data and Visualizations
 
 Usage: nping [OPTIONS] <TARGET>...
 
@@ -55,6 +61,7 @@ Options:
   -c, --count <COUNT>        Number of pings to send [default: 65535]
   -i, --interval <INTERVAL>  Interval in seconds between pings [default: 0]
   -6, --force_ipv6           Force using IPv6
+  -m, --multiple <MULTIPLE>  Specify the maximum number of target addresses, Only works on one target address [default: 0]
   -h, --help                 Print help
   -V, --version              Print version
 ```
