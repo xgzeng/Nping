@@ -12,7 +12,7 @@ use crate::network::send_ping;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "v0.2.1",
+    version = "v0.2.2",
     author = "hanshuaikang<https://github.com/hanshuaikang>",
     about = "🏎 Nping mean NB Ping, A Ping Tool in Rust with Real-Time Data and Visualizations"
 )]
