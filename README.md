@@ -66,5 +66,12 @@ Options:
   -V, --version              Print version
 ```
 
+## Acknowledgements
+Thanks to these people for their feedback and suggestions for 🏎Nping!
+
+| [zx4i](https://github.com/zx4i) | [snail2sky](https://github.com/snail2sky) | [shenshouer](https://github.com/shenshouer) | [vnt-dev](https://github.com/vnt-dev) | [qingyuan0o0](https://github.com/qingyuan0o0) 
+| [Onlywzr](https://github.com/Onlywzr)
+
+
 ## Star History
 [![Star History Chart](https://api.star-history.com/svg?repos=hanshuaikang/Nping&type=Date)](https://star-history.com/#hanshuaikang/Nping&Date)
