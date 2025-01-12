@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IpData {
     pub(crate) addr: String,
     pub(crate) ip: String,
