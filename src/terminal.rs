@@ -1,6 +1,7 @@
 use ratatui::backend::CrosstermBackend;
+use ratatui::crossterm::terminal::disable_raw_mode;
 use ratatui::Terminal;
-use crate::ui;
+use crate::draw;
 
 pub(crate) struct TerminalGuard {
     pub(crate) terminal: Option<Terminal<CrosstermBackend<std::io::Stdout>>>,
@@ -16,9 +17,11 @@ impl TerminalGuard {
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
+        // be sure to disable raw mode before exiting
+        let _ = disable_raw_mode();
         // Restore terminal state
         if let Some(mut terminal) = self.terminal.take() {
-            if let Err(err) = ui::restore_terminal(&mut terminal) {
+            if let Err(err) = draw::restore_terminal(&mut terminal) {
                 eprintln!("Failed to restore terminal: {}", err);
             }
         }

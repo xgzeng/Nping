@@ -1,7 +1,9 @@
 mod network;
-mod ui;
+mod draw;
 mod terminal;
 mod ip_data;
+mod ui;
+
 use clap::Parser;
 use std::collections::{HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -9,11 +11,15 @@ use tokio::task;
 use crate::ip_data::IpData;
 use std::sync::mpsc;
 use std::thread;
+use std::time::Duration;
+use ratatui::crossterm::event;
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
+use ratatui::crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crate::network::send_ping;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "v0.2.4",
+    version = "v0.2.5",
     author = "hanshuaikang<https://github.com/hanshuaikang>",
     about = "🏎  Nping mean NB Ping, A Ping Tool in Rust with Real-Time Data and Visualizations"
 )]
@@ -51,16 +57,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // parse command line arguments
     let args = Args::parse();
 
-    // set Ctrl+C handler
+    // set Ctrl+C and q and esc to exit
     let running = Arc::new(Mutex::new(true));
     {
         let running = running.clone();
-        ctrlc::set_handler(move || {
-            let mut running = running.lock().unwrap();
-            *running = false;
-        })
-            .expect("cannot set Ctrl+C handler");
+        thread::spawn(move || {
+            loop {
+                // if running is false, exit the loop
+                if !*running.lock().unwrap() {
+                    break;
+                }
+
+                if let Ok(true) = event::poll(Duration::from_millis(50)) {
+                    if let Ok(Event::Key(key)) = event::read() {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => {
+                                *running.lock().unwrap() = false;
+                                break;
+                            },
+                            KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => {
+                                *running.lock().unwrap() = false;
+                                break;
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        });
     }
+
 
 
     // after de-duplication, the original order is still preserved
@@ -76,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("{}", err);
         std::process::exit(1);
     }
+
     Ok(())
 }
 
@@ -90,10 +117,12 @@ async fn run_app(
 ) -> Result<(), Box<dyn std::error::Error>> {
 
     // init terminal
-    ui::init_terminal()?;
+    draw::init_terminal()?;
+
+    enable_raw_mode()?;
 
     // Create terminal instance
-    let terminal = ui::init_terminal().unwrap();
+    let terminal = draw::init_terminal().unwrap();
     let terminal_guard = Arc::new(Mutex::new(terminal::TerminalGuard::new(terminal)));
 
 
@@ -102,6 +131,7 @@ async fn run_app(
 
     let ping_update_tx = Arc::new(ping_update_tx);
 
+    let point_count = 20;
 
     let mut ips = Vec::new();
     // if multiple is set, get multiple IP addresses for each target
@@ -146,7 +176,7 @@ async fn run_app(
             let mut guard = terminal_guard.lock().unwrap();
             let ip_data = ip_data.lock().unwrap();
             // first draw ui
-            ui::draw_interface(
+            draw::draw_interface(
                 &mut guard.terminal.as_mut().unwrap(),
                 &view_type,
                 &ip_data,
@@ -161,7 +191,7 @@ async fn run_app(
                     ip_data[pos] = updated_data;
                 }
                 let mut guard = terminal_guard.lock().unwrap();
-                ui::draw_interface(
+                draw::draw_interface(
                     &mut guard.terminal.as_mut().unwrap(),
                     &view_type,
                     &ip_data,
@@ -183,7 +213,7 @@ async fn run_app(
             data[i].ip = ip.clone();
             let addr = data[i].addr.clone();
             async move {
-                send_ping(addr, ip, errs.clone(), count, interval, running.clone(), ping_update_tx).await.unwrap();
+                send_ping(addr, ip, errs.clone(), count, interval, running.clone(), point_count, ping_update_tx).await.unwrap();
             }
         });
         tasks.push(task)
@@ -192,6 +222,8 @@ async fn run_app(
     for task in tasks {
         task.await?;
     }
+
+    disable_raw_mode()?;
 
     Ok(())
 }
