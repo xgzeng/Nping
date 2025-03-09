@@ -18,7 +18,7 @@ use crate::network::send_ping;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "v0.2.6",
+    version = "v0.3.0",
     author = "hanshuaikang<https://github.com/hanshuaikang>",
     about = "🏎  Nping mean NB Ping, A Ping Tool in Rust with Real-Time Data and Visualizations"
 )]
@@ -46,7 +46,7 @@ struct Args {
     )]
     multiple: i32,
 
-    #[arg(short, long, default_value = "graph", help = "view mode graph or table")]
+    #[arg(short, long, default_value = "graph", help = "view mode graph/table/point")]
     view_type: String,
 }
 
@@ -154,12 +154,18 @@ async fn run_app(
         pop_count: 0,
     }).collect::<Vec<_>>()));
 
+    let mut point_num = 10;
+    if view_type == "point" {
+        point_num = 200;
+    }
+
     let view_type = Arc::new(view_type);
 
     let errs = Arc::new(Mutex::new(Vec::new()));
 
     let interval = if interval == 0 { 500 } else { interval * 1000 };
     let mut tasks = Vec::new();
+
 
     {
         let ip_data = ip_data.clone();
@@ -208,7 +214,7 @@ async fn run_app(
             data[i].ip = ip.clone();
             let addr = data[i].addr.clone();
             async move {
-                send_ping(addr, ip, errs.clone(), count, interval, running.clone(), ping_update_tx).await.unwrap();
+                send_ping(addr, ip, errs.clone(), count, interval, running.clone(), ping_update_tx, point_num).await.unwrap();
             }
         });
         tasks.push(task)
