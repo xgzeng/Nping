@@ -12,6 +12,7 @@ use crate::ip_data::IpData;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use std::path::Path;
 use ratatui::crossterm::event;
 use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use crate::network::send_ping;
@@ -24,8 +25,11 @@ use crate::network::send_ping;
 )]
 struct Args {
     /// Target IP address or hostname to ping
-    #[arg(help = "target IP address or hostname to ping", required = true)]
+    #[arg(help = "target IP address or hostname to ping", required = false)]
     target: Vec<String>,
+
+    #[arg(short, long, help = "target list file", required = false)]
+    target_file: Option<String>,
 
     /// Number of pings to send, when count is 0, the maximum number of pings per address is calculated
     #[arg(short, long, default_value_t = 65535, help = "Number of pings to send")]
@@ -50,6 +54,24 @@ struct Args {
     view_type: String,
 }
 
+fn read_target_file(file_path: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let file = match File::open(file_path) {
+        Ok(f) => f,
+        Err(e) => return Err(Box::new(e)),
+    };
+    let reader = BufReader::new(file);
+
+    let targets = reader
+        .lines()
+        .filter_map(|line| line.ok())
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+    return Ok(targets);
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -90,9 +112,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // after de-duplication, the original order is still preserved
     let mut seen = HashSet::new();
-    let targets: Vec<String> = args.target.into_iter()
+    let mut targets: Vec<String> = args.target.into_iter()
         .filter(|item| seen.insert(item.clone()))
         .collect();
+
+    if let Some(target_file) = args.target_file {
+        // read target file
+        let path = Path::new(&target_file);
+        if !path.exists() {
+            eprintln!("Target file does not exist");
+            std::process::exit(1);
+        }
+        if !path.is_file() {
+            eprintln!("Target file is not a file");
+            std::process::exit(1);
+        }
+        let mut targets_from_file = read_target_file(path)?;
+        targets_from_file.retain(|item| seen.insert(item.clone()));
+        targets.extend(targets_from_file);
+    }
+
+    if targets.is_empty() {
+        eprintln!("No target specified");
+        std::process::exit(1);
+    }
 
     let res = run_app(targets, args.count, args.interval, running.clone(), args.force_ipv6, args.multiple, args.view_type).await;
 
