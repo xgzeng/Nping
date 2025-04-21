@@ -10,5 +10,6 @@ authors = ["hanshuaikang https://github.com/hanshuaikang"]
 clap = { version = "4.5.23", features = ["derive"] }
 ratatui = "0.29.0"
 tokio = { version = "1.42.0", features = ["full"] }
-pinger="2.0.0"
 anyhow="1.0.89"
+surge-ping="0.8.2"
+rand="0.9.1"

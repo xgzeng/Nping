@@ -3,6 +3,7 @@ mod draw;
 mod terminal;
 mod ip_data;
 mod ui;
+mod pinger;
 
 use clap::Parser;
 use std::collections::{HashSet, VecDeque};

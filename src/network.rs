@@ -6,7 +6,7 @@ use std::sync::mpsc::SyncSender;
 use std::time::Duration;
 use anyhow::{anyhow, Context};
 
-use pinger::{ping, PingOptions, PingResult};
+use crate::pinger::{ping, PingOptions, PingResult};
 use crate::ip_data::IpData;
 
 // get host ip address default to ipv4
@@ -108,15 +108,15 @@ impl PingTask {
         );
 
         // star ping
-        let stream = ping(options)?;
+        let mut stream = ping(options).await?;
 
         for _ in 0..self.count {
             // if ctrl+c is pressed, break the loop
             if !*self.running.lock().unwrap() {
                 break;
             }
-            match stream.recv() {
-                Ok(result) => {
+            match stream.recv().await {
+                Some(result) => {
                     match result {
                         PingResult::Pong(duration, _size) => {
                             // calculate rtt
@@ -144,9 +144,10 @@ impl PingTask {
                         }
                     }
                 }
-                Err(err) => {
-                    let err = format!("host({}) ping err, reason: unknown, err: {}", self.ip, err);
-                    set_error(self.errs.clone(), err);
+                None => {
+                    // end of stream
+                    set_error(self.errs.clone(),"ping completed".into());
+                    break;
                 }
             }
 
