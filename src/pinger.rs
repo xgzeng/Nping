@@ -11,6 +11,7 @@ pub struct PingOptions {
     pub target: String,
     pub interval: Duration,
     pub interface: Option<String>,
+    pub stop_after_lost_n : i32,
 }
 
 #[derive(Debug)]
@@ -28,6 +29,7 @@ impl PingOptions {
             target,
             interval,
             interface,
+            stop_after_lost_n: 10,
         }
     }
 }
@@ -76,32 +78,33 @@ pub async fn ping(options: PingOptions) -> Result<mpsc::Receiver<PingResult>> {
         let mut pinger = client.pinger(target_addr, id).await;
         let mut seq: u16 = 0;
         let palyload: Vec<u8> = vec![0; 8];
+        let mut lost_count = 0;
         loop {
             seq += 1;
-
-            match pinger.ping(surge_ping::PingSequence(seq), &palyload).await {
+            let prin_result = match pinger.ping(surge_ping::PingSequence(seq), &palyload).await {
                 Ok((_, rtt)) => {
-                    let result = PingResult::Pong(rtt, options.target.clone());
-                    if tx.send(result).await.is_err() {
-                        break;
-                    }
+                    lost_count = 0;
+                    PingResult::Pong(rtt, options.target.clone())
                 }
                 Err(err) => match err {
                     SurgeError::Timeout { seq: _ } => {
-                        if tx
-                            .send(PingResult::Timeout(options.target.clone()))
-                            .await
-                            .is_err()
-                        {
-                            break;
-                        }
+                        lost_count += 1;
+                        PingResult::Timeout(options.target.clone())
                     }
                     _ => {
-                        if tx.send(PingResult::Unknown(err.to_string())).await.is_err() {
-                            break;
-                        }
+                        lost_count += 1;
+                        PingResult::Unknown(err.to_string())
                     }
-                },
+                }
+            };
+            // send ping result
+            if tx.send(prin_result).await.is_err() {
+                // write channel failed
+                break;
+            }
+            if lost_count >= options.stop_after_lost_n {
+                // stop pinging if lost count exceeds the limit
+                break;
             }
             tokio::time::sleep(options.interval).await;
         }
